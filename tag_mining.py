@@ -30,29 +30,25 @@ def open_browser(q):
     wait.until(EC.presence_of_element_located(HASHTAG_INFO))
     return driver
 
-def log_csv(df):
-    df.to_csv("hashtag.csv", header=True)
-
-def format_data(tags, counts):
+def data_frame(data, counts):
     now = datetime.now()
     time = now.strftime("%H:%M:%S")
-    data = {
-        "hashtag": tags,
-        f"{time}": counts
-    }
-    df = pd.DataFrame(data)
+    df = pd.DataFrame(data, index=None)
+    df[f"{time}"] = counts
     return df
 
 def get_counts(tags):
     for t in tags:
         browser = open_browser(t)
-        post_count = browser.find_element_by_class_name(POST_COUNT).get_attribute("innerText")
-        browser.close()
+        while True:
+            try:
+                post_count = browser.find_element_by_class_name(POST_COUNT).get_attribute("innerText")
+                browser.close()
+            except TimeoutException:
+                continue
+            break
         COUNTS.append(post_count)
-    df = format_data(tags, COUNTS)
-    return df
-
-
+    return COUNTS
 
 def mine_tag(tag_list):
     TAGS = []
@@ -69,7 +65,8 @@ def mine_tag(tag_list):
                 break       
             if len(TAGS) >= 100:
                 break
-    return TAGS
+    data = {"hashtag": TAGS}
+    return data
 
 
 def search_tag(tag):
