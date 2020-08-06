@@ -7,6 +7,7 @@ from tag_mining import (
 from datetime import datetime
 import time
 import pandas as pd
+import numpy as np
 
 class Miner:
     def __init__(self, tag, intervals=60, sets=3):
@@ -14,43 +15,51 @@ class Miner:
         self.intervals = intervals
         self.sets = sets
         self.realtime_logging("Hashtag Miner Started")
-        self.start_miner()
+        self.df = self.start_miner()
+
     
-    def realtime_logging(self, text):
+    def get_time(self):
         now = datetime.now()
         time = now.strftime("%H:%M:%S")
+        return time
+    
+    def realtime_logging(self, text):
+        time = self.get_time()
         with open('activity.txt', 'a') as f:
             f.write(f"{time}  -------------> {text}\n")
 
     def start_miner(self):
-        tag_list = search_tag(self.tag)
-        data = mine_tag(tag_list)
+        tag_list = mine_tag(self.tag) #list
         self.realtime_logging("Hashtag Mining Completed!")
+
+        data = {'hashtag': tag_list}
+        df = pd.DataFrame(data) #DF
+
         for i in range(0, self.sets):
-            counts = get_counts(data["hashtag"])
-            data = data_frame(data, counts)
-            data.to_csv('hashtag.csv')
+            time = self.get_time()
+            counts = get_counts(tag_list) #list
+            df.insert(i+1, time, counts)
+            df.to_csv('hashtag.csv')
             self.realtime_logging(f"{i+1}/{self.sets} completed!")
             time.sleep(60*self.intervals)
-        df = data.set_index('hashtag')
-        now = datetime.now()
-        date = now.strftime("%m/%d/%Y, %H:%M:%S")
         with open('activity.txt', 'a') as f:
-            f.write(f"{date} | Session Finished\n")
+            f.write("Session Finished\n")
         return df
     
-    def analyze(self, filename):
-        df = pd.read_csv(filename)
-        target_data = {"hastag": list(df.index.values)}
-        analysis_df = pd.DataFrame(target_data)
-        for n in range(1, len(df.columns)):
-            former = df.columns[n]
-            latter = df.columns[n+1]
-            diff = df[latter] - df[former]
-            analysis_df[f'diff{n}'] = diff
-        analysis_df = analysis_df.set_index("hashtag")
-        analysis_df['mean'] = analysis_df.mean(axis=1)
-        return analysis_df
-
-    
+def analyze(filename):
+    df = pd.read_csv(filename)
+    data = {}
+    for i in range(1, len(df.columns)):
+        data[f'inc-rate{i}'] = df[df.columns.values[i+1]] / df[df.columns.values[i]]
+    preview = pd.DataFrame(data, index=df["hashtag"])
+    rank_df = preview.apply(np.argsort, axis=1)
+    ranked_cols = df.columns.to_series()[rank_df.values[:,::-1][:,:2]]
+    data = {
+        'latests': df[df.columns[-1]],
+        'hot-time': ranked_cols[0], #highest increase interval
+        '2nd hot-time': ranked_cols[1], #2nd highest
+        'mean': preview.mean(axis=1) #mean of every difference
+    }
+    df_analysis = pd.DataFrame(data, index=df['hashtag'])
+    df_analysis.to_csv("analysis.csv")
 

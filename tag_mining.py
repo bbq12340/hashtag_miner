@@ -17,8 +17,6 @@ HASHTAG_INFO = By.CLASS_NAME, "WSpok"
 POST_COUNT = "g47SY"
 RELATED_TAGS = "LFGs8"
 
-CHILD_TAGS = [] #used in search_tags
-COUNTS = [] #used in get_counts
 
 def open_browser(q):
     options = Options()
@@ -37,8 +35,9 @@ def data_frame(data, counts):
     df[f"{time}"] = counts
     return df
 
-def get_counts(tags):
-    for t in tags:
+def get_counts(tag_list):
+    COUNT = []
+    for t in tag_list:
         browser = open_browser(t)
         while True:
             try:
@@ -47,34 +46,37 @@ def get_counts(tags):
             except TimeoutException:
                 continue
             break
-        COUNTS.append(post_count)
-    return COUNTS
+        COUNT.append(post_count)
+    return COUNT
 
-def mine_tag(tag_list):
+def mine_tag(tag):
     TAGS = []
-    TAGS.extend(tag_list)
+    TAGS.append(tag)
+    print(len(TAGS))
     while len(TAGS) < 100:
         for t in range(0,100):
             while True:
                 try:
-                    tag_list = search_tag(TAGS[t])
-                    TAGS.extend(tag_list)
+                    print(t)
+                    related_tag_list = search_tag(TAGS[t])
+                    TAGS.extend(related_tag_list)
                     TAGS = list(OrderedDict.fromkeys(TAGS))
+                    print(related_tag_list)
+                    print(len(TAGS))
                 except TimeoutException:
                     continue
                 break       
             if len(TAGS) >= 100:
                 break
-    data = {"hashtag": TAGS}
-    return data
-
+    return TAGS
 
 def search_tag(tag):
+    REL_TAGS = []
     browser = open_browser(tag)
     rel_tags = browser.find_elements_by_class_name(RELATED_TAGS)
 
     for tag in rel_tags:
         tag = tag.get_attribute('innerText').strip('#')
-        CHILD_TAGS.append(tag)
+        REL_TAGS.append(tag)
     browser.close()
-    return CHILD_TAGS
+    return REL_TAGS
