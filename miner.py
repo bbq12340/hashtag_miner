@@ -37,20 +37,14 @@ class Miner:
         df = df.transpose()
         
         Data = {}
-
-
-    
-        for i in range(1, len(df.columns)):
-            data[f'inc-rate{i}'] = df[df.columns.values[i+1]] / df[df.columns.values[i]]
-        preview = pd.DataFrame(data, index=df["hashtag"])
-        rank_df = preview.apply(np.argsort, axis=1)
-        ranked_cols = df.columns.to_series()[rank_df.values[:,::-1][:,:2]]
-        data = {
-            'latests': df[df.columns[-1]],
-            'hot-time': ranked_cols[0], #highest increase interval
-            '2nd hot-time': ranked_cols[1], #2nd highest
-            'mean': preview.mean(axis=1) #mean of every difference
-        }
-        df_analysis = pd.DataFrame(data, index=df['hashtag'])
-        df_analysis.to_csv(f"{filename}-analysis.csv")
+        df_num = df.select_dtypes(include=[np.number])
+        for i in range(1, len(df.index)):
+            df_diff = df.iloc[i] - df.iloc[i-1]
+            df_ir = (df_diff/df_num.iloc[i-1])*100
+            Data[f"interval{i}"] = df_ir
+        DF = pd.DataFrame(Data)
+        DF.nlargest(2)
+        DF['hottest'] = DF.idxmax(axis=1)
+        DF['average'] = DF.mean(axis=1)
+    return DF
 
