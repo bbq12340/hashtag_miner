@@ -43,8 +43,19 @@ class Miner:
             df_ir = (df_diff/df_num.iloc[i-1])*100
             Data[f"interval{i}"] = df_ir
         DF = pd.DataFrame(Data)
-        DF.nlargest(2)
-        DF['hottest'] = DF.idxmax(axis=1)
-        DF['average'] = DF.mean(axis=1)
-    return DF
+
+        HOTTEST = DF.idxmax(axis=1)
+        AVERAGE = DF.mean(axis=1)
+        ir_average = sum(AVERAGE)/len(AVERAGE)
+        ir_deviation = [x - ir_average for x in AVERAGE]
+        DF['hottest'] = HOTTEST
+        DF['average'] = AVERAGE
+        DF['deviation'] = ir_deviation
+        DF.to_csv("analysis.csv")
+
+        df_bool = df.select_dtypes(include='bool')
+        with open('banned_hashtags.txt', 'a') as f:
+            for b in df_bool.columns.values:
+                f.write(f"{b}\n")
+        
 
