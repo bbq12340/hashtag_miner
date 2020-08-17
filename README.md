@@ -32,7 +32,21 @@ The basic math:
     - average of icrease rate/*intervals(minutes)
 
 # UPDATE 2020/08/06
-# Instagram disables related hashtags feature after bug that appeared to favor Trump (2020.08.05)
+Instagram disables related hashtags feature after bug that appeared to favor Trump (2020.08.05)
+
+# UPDATE 2020/08/17
+hashtag mining camp changed
+Instagram -> Tagfinder
+
+# Requirements
+- selenium
+- webdriver_manager
+- time
+- pandas
+- numpy
+- collections
+- datetime
+- schedule
     
 
 

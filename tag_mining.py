@@ -60,12 +60,12 @@ def open_tagfinder(driver, q, custom):
         TAGS.append(t)  
     return TAGS
 
-def mine_tag(parent_tag: str, custom=""):
+def mine_tag(parent_tag="", custom="", num=30):
     HASHTAGS = []
     HASHTAGS.append(parent_tag)
     browser = open_browser()
-    while len(HASHTAGS) < 100:
-        for t in range(0,100):
+    while len(HASHTAGS) < num:
+        for t in range(0,num):
             while True:
                 try:
                     related_tag_list = open_tagfinder(browser, HASHTAGS[t], custom)
@@ -74,7 +74,7 @@ def mine_tag(parent_tag: str, custom=""):
                 except TimeoutException:
                     continue
                 break       
-            if len(HASHTAGS) >= 100:
+            if len(HASHTAGS) >= num:
                 break
     data = {'hashtags': HASHTAGS}
     df = pd.DataFrame(data)
