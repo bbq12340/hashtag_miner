@@ -9,6 +9,7 @@ from collections import OrderedDict
 import time
 from datetime import datetime
 import pandas as pd
+import numpy as np
 
 HASHTAG_INFO = By.CLASS_NAME, "WSpok"
 POST_COUNT = "g47SY"
@@ -96,7 +97,7 @@ def get_counts(filename):
         except NoSuchElementException:
             try:
                 banned = browser.find_element_by_class_name("_4Kbb_")
-                post_count = "banned"
+                post_count = False
             except NoSuchElementException:
                 posts = browser.find_elements_by_class_name("v1Nh3")
                 post_count = len(posts)
@@ -120,3 +121,33 @@ def get_counts(filename):
     df.insert(len(df.columns), time, COUNT)
     df.to_csv(filename, index=False)
     return COUNT
+
+def analyze(filename):
+    df = pd.read_csv(filename, index_col=0)
+    tagname = filename.split('.')[0]
+    
+    df_num = df.select_dtypes(include=[np.number])
+    df_diff = df_num.diff(axis=0)
+    df_diff = df_diff.drop(df_diff.index[0])
+    for c in range(len(df_diff.columns)):
+        for r in range(len(df_diff.index)):
+            df_diff.iloc[r,c] = (df_diff.iloc[r,c]/df_num.iloc[r,c])*100
+    df_diff = df_diff.transpose()
+    df_diff.columns = [f"interval{i}" for i in range(1, len(df_diff.columns)+1)]
+    print(df_diff)
+
+    DF = pd.DataFrame(df_diff)
+    HOTTEST = DF.idxmax(axis=1)
+    AVERAGE = DF.mean(axis=1)
+    ir_average = sum(AVERAGE)/len(AVERAGE)
+    IR_DEVIATION = [x - ir_average for x in AVERAGE]
+    DF['hottest'] = HOTTEST
+    DF['average'] = AVERAGE
+    DF['deviation'] = IR_DEVIATION
+    print(DF)
+    DF.to_csv(f"{tagname}_analysis.csv")
+
+    df_bool = df.select_dtypes(include='bool')
+    with open('banned_hashtags.txt', 'a') as f:
+        for b in df_bool.columns.values:
+            f.write(f"{b}\n")
