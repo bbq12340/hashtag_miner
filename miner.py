@@ -24,10 +24,13 @@ class TagMiner:
         HASHTAGS_DF = pd.DataFrame({'hashtags': self.search_mediance()})
 
         while len(HASHTAGS_DF['hashtags']) < self.num:
-            random_tags = random.sample(list(HASHTAGS_DF['hashtags']), 10)
+            try:
+                random_tags = random.sample(list(HASHTAGS_DF['hashtags']), 10)
+            except TimeoutException:
+                random_tags = random.sample(list(HASHTAGS_DF['hashtags']), 5)
             NEW_DF = self.search_tagsfinder(random_tags)
             HASHTAGS_DF = pd.concat([HASHTAGS_DF, NEW_DF], ignore_index=True)
-            HASHTAGS_DF.drop_duplicates(subset=['hashtags'])
+            HASHTAGS_DF = HASHTAGS_DF.drop_duplicates(subset=['hashtags'])
             if len(HASHTAGS_DF['hashtags']) >= self.num:
                 self.browser.close()
                 HASHTAGS_DF.to_csv(f'{self.tag}.csv', encoding='utf-8')
@@ -42,7 +45,7 @@ class TagMiner:
         SIMILAR_RANK = 'rank_table'
         SIMILAR_RANK_BY_ID = By.CLASS_NAME, SIMILAR_RANK
         NO_RESULT = 'nosearch_con'
-        HASHTAGS = []
+        HASHTAGS = [self.tag]
         self.browser.get(f"http://tag.mediance.co.kr/analytics/tag/{self.tag}")
         try:
             self.wait.until(EC.presence_of_element_located(SIMILAR_RANK_BY_ID))
@@ -80,7 +83,7 @@ class TagMiner:
         COUNTS=[]
 
         tag_list = list(self.df['hashtags'])
-        
+        self.browser = self.open_browser()
         for t in tag_list:
             self.browser.get(f"https://www.instagram.com/explore/tags/{t}/")
             self.wait.until(EC.presence_of_element_located(HASHTAG_INFO_BY_CLASS))
@@ -100,10 +103,10 @@ class TagMiner:
             COUNTS.append(count)
         now = datetime.now()
         current_time = now.strftime("%H")
-        self.df.insert(len(self.df.columns), current_time, COUNTS)
+        self.df.insert(len(self.df.columns), f'{current_time}:00', COUNTS)
         self.df.to_csv(f'{self.tag}.csv', index=False)
-        
-    def scheduler(self, start, hours):
+
+    def scheduler(self, start):
         schedule.every().hour.at(f"{start}:00").do(self.get_counts)
         while True:
             schedule.run_pending()
