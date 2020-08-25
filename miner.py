@@ -12,6 +12,8 @@ from datetime import datetime
 import pandas as pd
 import numpy as np
 import random
+import schedule
+import sys
 
 class TagMiner:
     def __init__(self, tag, custom=None, num=30):
@@ -20,7 +22,6 @@ class TagMiner:
         self.num = num
         self.browser = self.open_browser()
         HASHTAGS_DF = pd.DataFrame({'hashtags': self.search_mediance()})
-        print(HASHTAGS_DF['hashtags'])
 
         while len(HASHTAGS_DF['hashtags']) < self.num:
             random_tags = random.sample(list(HASHTAGS_DF['hashtags']), 10)
@@ -31,6 +32,8 @@ class TagMiner:
                 self.browser.close()
                 HASHTAGS_DF.to_csv(f'{self.tag}.csv', encoding='utf-8')
                 break
+        self.df = pd.read_csv(f'{self.tag}.csv', index_col=0)
+        
     def open_browser(self):
         browser = webdriver.Chrome(ChromeDriverManager().install())
         self.wait = WebDriverWait(browser, 30)
@@ -72,6 +75,36 @@ class TagMiner:
         hashtag_df = pd.DataFrame({'hashtags': HASHTAGS})
         return hashtag_df
 
+    def get_counts(self):
+        HASHTAG_INFO_BY_CLASS = By.CLASS_NAME, "WSpok"
+        COUNTS=[]
 
+        tag_list = list(self.df['hashtags'])
         
-    
+        for t in tag_list:
+            self.browser.get(f"https://www.instagram.com/explore/tags/{t}/")
+            self.wait.until(EC.presence_of_element_located(HASHTAG_INFO_BY_CLASS))
+            html = self.browser.execute_script('return document.documentElement.outerHTML')
+            soup = BeautifulSoup(html, 'html.parser')
+            count = soup.find('span',{'class':'g47SY'})
+            banned = soup.find('div',{'class': '._4Kbb_'})
+            posts = soup.find_all('div', {'class': 'v1Nh3'})
+            if count:
+                count = count.text
+                if type(count) == str:
+                    count = int(count.replace(',',''))
+            elif banned:
+                count = False
+            elif posts:
+                count = len(posts)
+            COUNTS.append(count)
+        now = datetime.now()
+        current_time = now.strftime("%H")
+        self.df.insert(len(self.df.columns), current_time, COUNTS)
+        self.df.to_csv(f'{self.tag}.csv', index=False)
+        
+    def scheduler(self, start, hours):
+        schedule.every().hour.at(f"{start}:00").do(self.get_counts)
+        while True:
+            schedule.run_pending()
+            time.sleep(60)
