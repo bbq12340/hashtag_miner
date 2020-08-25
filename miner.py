@@ -41,6 +41,14 @@ class TagMiner:
         browser = webdriver.Chrome(ChromeDriverManager().install())
         self.wait = WebDriverWait(browser, 30)
         return browser
+    def refresh_browser(self, browser):
+        while True:
+            time.sleep(5)
+            browser.refresh()
+            r = requests.get(browser.current_url)
+            if r.status_code == 200:
+                break
+        return browser
     def search_mediance(self):
         SIMILAR_RANK = 'rank_table'
         SIMILAR_RANK_BY_ID = By.CLASS_NAME, SIMILAR_RANK
@@ -85,8 +93,11 @@ class TagMiner:
         tag_list = list(self.df['hashtags'])
         self.browser = self.open_browser()
         for t in tag_list:
-            self.browser.get(f"https://www.instagram.com/explore/tags/{t}/")
-            self.wait.until(EC.presence_of_element_located(HASHTAG_INFO_BY_CLASS))
+            try:
+                self.browser.get(f"https://www.instagram.com/explore/tags/{t}/")
+                self.wait.until(EC.presence_of_element_located(HASHTAG_INFO_BY_CLASS))
+            except TimeoutException:
+                self.refresh_browser(self.browser)
             html = self.browser.execute_script('return document.documentElement.outerHTML')
             soup = BeautifulSoup(html, 'html.parser')
             count = soup.find('span',{'class':'g47SY'})
@@ -101,13 +112,21 @@ class TagMiner:
             elif posts:
                 count = len(posts)
             COUNTS.append(count)
+        self.browser.close()
         now = datetime.now()
         current_time = now.strftime("%H")
         self.df.insert(len(self.df.columns), f'{current_time}:00', COUNTS)
         self.df.to_csv(f'{self.tag}.csv', index=False)
 
-    def scheduler(self, start):
-        schedule.every().hour.at(f"{start}:00").do(self.get_counts)
+    def check_schedule(self, hours):
+        print(f"{len(self.df.columns)-1}/{hours} completed")
+        if len(self.df.columns)-1 == hours:
+            print('finished')
+            sys.exit()
+
+    def scheduler(self, start, hours):
+        schedule.every(30).minutes.at(start).do(self.get_counts)
+        schedule.every(30).minutes.at(start).do(self.check_schedule, hours=hours)
         while True:
             schedule.run_pending()
             time.sleep(60)
